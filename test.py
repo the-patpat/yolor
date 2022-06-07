@@ -310,6 +310,7 @@ if __name__ == '__main__':
     parser.add_argument('--exist-ok', action='store_true', help='existing project/name ok, do not increment')
     parser.add_argument('--cfg', type=str, default='cfg/yolor_p6.cfg', help='*.cfg path')
     parser.add_argument('--names', type=str, default='data/coco.names', help='*.cfg path')
+    parser.add_argument('--plot_imgs', action="store_true", help="save images with predictions")
     opt = parser.parse_args()
     opt.save_json |= opt.data.endswith('coco.yaml')
     opt.data = check_file(opt.data)  # check file
@@ -328,6 +329,7 @@ if __name__ == '__main__':
              opt.verbose,
              save_txt=opt.save_txt,
              save_conf=opt.save_conf,
+             plots=opt.plot_imgs
              )
 
     elif opt.task == 'study':  # run over a range of settings and save/plot
