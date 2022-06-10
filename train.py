@@ -6,6 +6,7 @@ import random
 import time
 from pathlib import Path
 from warnings import warn
+import json
 
 import numpy as np
 import torch.distributed as dist
@@ -483,6 +484,7 @@ if __name__ == '__main__':
     parser.add_argument('--project', default='runs/train', help='save to project/name')
     parser.add_argument('--name', default='exp', help='save to project/name')
     parser.add_argument('--exist-ok', action='store_true', help='existing project/name ok, do not increment')
+    parser.add_argument('--hyp-dict', type=str, default='{}', help='direct command line hyperparmeters, json style')
     opt = parser.parse_args()
 
     # Set DDP variables
@@ -520,12 +522,15 @@ if __name__ == '__main__':
         opt.batch_size = opt.total_batch_size // opt.world_size
 
     # Hyperparameters
-    with open(opt.hyp) as f:
-        hyp = yaml.load(f, Loader=yaml.FullLoader)  # load hyps
-        if 'box' not in hyp:
-            warn('Compatibility: %s missing "box" which was renamed from "giou" in %s' %
-                 (opt.hyp, 'https://github.com/ultralytics/yolov5/pull/1120'))
-            hyp['box'] = hyp.pop('giou')
+    if len(opt.hyp_dict) > 0:
+        hyp = json.loads(opt.hyp_dict.replace('\'', '"'))
+    else:
+        with open(opt.hyp) as f:
+            hyp = yaml.load(f, Loader=yaml.FullLoader)  # load hyps
+    if 'box' not in hyp:
+        warn('Compatibility: %s missing "box" which was renamed from "giou" in %s' %
+            (opt.hyp, 'https://github.com/ultralytics/yolov5/pull/1120'))
+        hyp['box'] = hyp.pop('giou')
 
     # Train
     logger.info(opt)
