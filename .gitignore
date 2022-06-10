@@ -1,1 +1,4 @@
 inference/**
+*.pt
+*.out
+*.err
