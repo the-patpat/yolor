@@ -90,6 +90,7 @@ def test(data,
     log_imgs, wandb = min(log_imgs, 100), None  # ceil
     try:
         import wandb  # Weights & Biases
+        wandb.init()
     except ImportError:
         log_imgs = 0
 
@@ -243,6 +244,7 @@ def test(data,
     # Print results
     pf = '%20s' + '%12.3g' * 6  # print format
     print(pf % ('all', seen, nt.sum(), mp, mr, map50, map))
+    wandb.log({"mP" : mp, "mR":mr, "mAP50": map50, "mAP.5:.05.95" : map})
 
     # Print results per class
     if verbose and nc > 1 and len(stats):
@@ -253,6 +255,7 @@ def test(data,
     t = tuple(x / seen * 1E3 for x in (t0, t1, t0 + t1)) + (imgsz, imgsz, batch_size)  # tuple
     if not training:
         print('Speed: %.1f/%.1f/%.1f ms inference/NMS/total per %gx%g image at batch-size %g' % t)
+        wandb.log({"inference_speed" : t[0], "nms_speed" : t[1], "total_speed": t[2]})
 
     # Save JSON
     if save_json and len(jdict):

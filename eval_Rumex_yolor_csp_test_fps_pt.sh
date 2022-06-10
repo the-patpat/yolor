@@ -26,12 +26,12 @@
 #BSUB -N 
 ### -- Specify the output and error file. %J is the job-id -- 
 ### -- -o and -e mean append, -oo and -eo mean overwrite -- 
-#BSUB -oo Output_eval_rumex_yolor_csp_test_fps.out 
-#BSUB -eo Error_eval_rumex_yolor_csp_test_fps.err 
+#BSUB -oo Output_eval_rumex_yolor_csp_test_fps_wandb.out 
+#BSUB -eo Error_eval_rumex_yolor_csp_test_fps_wandb.err 
 
 # here follow the commands you want to execute 
 
 source activate yolor
 conda env list
 nvidia-smi
-python test.py --weights runs/train/yolor_csp_pretrained/weights/best.pt --batch-size 1 --device 0 --task test --cfg cfg/yolor_csp_rumex.cfg --data /zhome/d4/b/153599/scratch/RumexWeeds-YOLOv5/dataset.yaml --conf-thres 0.01 --names ../RumexWeeds-YOLOv5/dataset.names --iou-thres 0.65 --img-size 640 --project inference/csp/test_fps
+python test.py --plot_imgs --weights runs/train/yolor_csp_pretrained/weights/best.pt --batch-size 1 --device 0 --task test --cfg cfg/yolor_csp_rumex.cfg --data /zhome/d4/b/153599/scratch/RumexWeeds-YOLOv5/dataset.yaml --conf-thres 0.01 --names ../RumexWeeds-YOLOv5/dataset.names --iou-thres 0.65 --img-size 640 --project inference/csp/test_fps_withwandb
