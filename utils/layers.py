@@ -472,7 +472,7 @@ class SIFTScaleSpatial(nn.Module):
         a = nn.functional.interpolate(a, size=x.shape[-2:])
         if a.device != x.device:
             a = a.to(x.device)
-        return x * a
+        return x * a if self.training else x
     
 
 class ImplicitA(nn.Module):
@@ -564,15 +564,16 @@ class SIFTAttention(nn.Module):
         #Switch channel order as cv2 expects HWC
         with torch.no_grad():
             x = torch.permute(x, (0,2,3,1))
-            hist_out = torch.zeros((x.shape[0], 1, self.input_size, self.input_size))
-            for i in range(x.shape[0]):
-                img = x[i, :, :, :]
-                img = (img.cpu().numpy()*255).astype(np.uint8)
-                kp = self.sift.detect(cv2.cvtColor(img, cv2.COLOR_BGR2GRAY))
-                kpt = torch.tensor([x.pt for x in kp])
-                #keypoints are x,y (width-height dimension)
-                hist, bin_edges = torch.histogramdd(kpt, 2*[self.input_size], density=True)
-                hist_out[i, 0, :, :] = hist.permute((1,0)).clone().detach().to('cuda')
+            hist_out = torch.zeros((x.shape[0], 1, self.input_size, self.input_size), device=x.device)
+            if self.training:
+                for i in range(x.shape[0]):
+                    img = x[i, :, :, :]
+                    img = (img.cpu().numpy()*255).astype(np.uint8)
+                    kp = self.sift.detect(cv2.cvtColor(img, cv2.COLOR_BGR2GRAY))
+                    kpt = torch.tensor([x.pt for x in kp])
+                    #keypoints are x,y (width-height dimension)
+                    hist, bin_edges = torch.histogramdd(kpt, 2*[self.input_size], density=True)
+                    hist_out[i, 0, :, :] = hist.permute((1,0)).clone().detach().to('cuda')
         return hist_out
     
     
