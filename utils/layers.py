@@ -462,6 +462,17 @@ class ScaleSpatial(nn.Module):  # weighted sum of 2 or more layers https://arxiv
     def forward(self, x, outputs):
         a = outputs[self.layers[0]]
         return x * a
+
+class SIFTScaleSpatial(nn.Module):
+    def __init__(self, layers):
+        super(SIFTScaleSpatial, self).__init__()
+        self.layers = layers
+    def forward(self, x, outputs):
+        a = outputs[self.layers[0]]
+        a = nn.functional.interpolate(a, size=x.shape[-2:])
+        if a.device != x.device:
+            a = a.to(x.device)
+        return x * a
     
 
 class ImplicitA(nn.Module):
@@ -529,6 +540,39 @@ class Implicit2DM(nn.Module):
 
     def forward(self):
         return self.implicit
-    
+
+class SIFTAttention(nn.Module):
+    def __init__(self, input_size):
+        super(SIFTAttention, self).__init__()
+        self.input_size = input_size 
+        self.sift = cv2.SIFT_create()
+        pass
+    def forward(self, x: torch.Tensor):
+        """Computes the keypoint density
+        
+        Input
+        -----
+        x: torch.tensor
+            (B,C,H,W) input containing original images/
+            
+        Output
+        ------
+        hist_out: torch.Tensor
+            (B,1,H,W) output containing maps of keypoint densities
+        """
+        print(x.shape)
+        #Switch channel order as cv2 expects HWC
+        with torch.no_grad():
+            x = torch.permute(x, (0,2,3,1))
+            hist_out = torch.zeros((x.shape[0], 1, self.input_size, self.input_size))
+            for i in range(x.shape[0]):
+                img = x[i, :, :, :]
+                img = (img.cpu().numpy()*255).astype(np.uint8)
+                kp = self.sift.detect(cv2.cvtColor(img, cv2.COLOR_BGR2GRAY))
+                kpt = torch.tensor([x.pt for x in kp])
+                #keypoints are x,y (width-height dimension)
+                hist, bin_edges = torch.histogramdd(kpt, 2*[self.input_size], density=True)
+                hist_out[i, 0, :, :] = hist.permute((1,0)).clone().detach().to('cuda')
+        return hist_out
     
     

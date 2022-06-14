@@ -162,6 +162,12 @@ def create_modules(module_defs, img_size, cfg):
             routs.extend([i + l if l < 0 else l for l in layers])
             modules = ScaleSpatial(layers=layers)
 
+        elif mdef['type'] == 'sam_sift':  # nn.Sequential() placeholder for 'shortcut' layer
+            layers = mdef['from']
+            filters = output_filters[-1]
+            routs.extend([i + l if l < 0 else l for l in layers])
+            modules = SIFTScaleSpatial(layers=layers)
+
         elif mdef['type'] == 'BatchNorm2d':
             filters = output_filters[-1]
             modules = nn.BatchNorm2d(filters, momentum=0.03, eps=1E-4)
@@ -322,6 +328,11 @@ def create_modules(module_defs, img_size, cfg):
                 module_list[j][0].bias = torch.nn.Parameter(bias_, requires_grad=bias_.requires_grad)
             except:
                 print('WARNING: smart bias initialization failure.')
+
+        elif mdef['type'] == 'sift_attention':
+            hist_size = mdef['size']
+            filters = 1
+            modules = SIFTAttention(hist_size)
 
         else:
             print('Warning: Unrecognized Layer Type: ' + mdef['type'])
@@ -569,7 +580,7 @@ class Darknet(nn.Module):
 
     def forward_once(self, x, augment=False, verbose=False):
         img_size = x.shape[-2:]  # height, width
-        yolo_out, out = [], []
+        yolo_out, out = [], [] #Out array contains routed outputs
         if verbose:
             print('0', x.shape)
             str = ''
@@ -585,8 +596,8 @@ class Darknet(nn.Module):
 
         for i, module in enumerate(self.module_list):
             name = module.__class__.__name__
-            #print(name)
-            if name in ['WeightedFeatureFusion', 'FeatureConcat', 'FeatureConcat2', 'FeatureConcat3', 'FeatureConcat_l', 'ScaleChannel', 'ShiftChannel', 'ShiftChannel2D', 'ControlChannel', 'ControlChannel2D', 'AlternateChannel', 'AlternateChannel2D', 'SelectChannel', 'SelectChannel2D', 'ScaleSpatial']:  # sum, concat
+            print(name)
+            if name in ['WeightedFeatureFusion', 'FeatureConcat', 'FeatureConcat2', 'FeatureConcat3', 'FeatureConcat_l', 'ScaleChannel', 'ShiftChannel', 'ShiftChannel2D', 'ControlChannel', 'ControlChannel2D', 'AlternateChannel', 'AlternateChannel2D', 'SelectChannel', 'SelectChannel2D', 'ScaleSpatial', 'SIFTScaleSpatial']:  # sum, concat
                 if verbose:
                     l = [i - 1] + module.layers  # layers
                     sh = [list(x.shape)] + [list(out[i].shape) for i in module.layers]  # shapes
@@ -599,8 +610,8 @@ class Darknet(nn.Module):
             elif name == 'JDELayer':
                 yolo_out.append(module(x, out))
             else:  # run module directly, i.e. mtype = 'convolutional', 'upsample', 'maxpool', 'batchnorm2d' etc.
-                #print(module)
-                #print(x.shape)
+                # print(module)
+                # print(x.shape)
                 x = module(x)
 
             out.append(x if self.routs[i] else [])
