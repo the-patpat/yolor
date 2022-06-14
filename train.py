@@ -522,8 +522,9 @@ if __name__ == '__main__':
         opt.batch_size = opt.total_batch_size // opt.world_size
 
     # Hyperparameters
-    if len(opt.hyp_dict) > 0:
+    if opt.hyp_dict != '{}':
         hyp = json.loads(opt.hyp_dict.replace('\'', '"'))
+        logger.info("Using command line hyperparmeters.")
     else:
         with open(opt.hyp) as f:
             hyp = yaml.load(f, Loader=yaml.FullLoader)  # load hyps
