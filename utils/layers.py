@@ -5,9 +5,10 @@ from utils.general import *
 import torch
 from torch import nn
 
+
 try:
     from mish_cuda import MishCuda as Mish
-    
+
 except:
     class Mish(nn.Module):  # https://github.com/digantamisra98/Mish
         def forward(self, x):
@@ -542,10 +543,11 @@ class Implicit2DM(nn.Module):
         return self.implicit
 
 class SIFTAttention(nn.Module):
-    def __init__(self, input_size):
+    def __init__(self, input_size, create_fn=cv2.SIFT_create):
         super(SIFTAttention, self).__init__()
         self.input_size = input_size 
-        self.sift = cv2.SIFT_create()
+        if self.training:
+            self.sift = create_fn()
         pass
     def forward(self, x: torch.Tensor):
         """Computes the keypoint density
@@ -560,7 +562,6 @@ class SIFTAttention(nn.Module):
         hist_out: torch.Tensor
             (B,1,H,W) output containing maps of keypoint densities
         """
-        print(x.shape)
         #Switch channel order as cv2 expects HWC
         with torch.no_grad():
             x = torch.permute(x, (0,2,3,1))
@@ -575,5 +576,5 @@ class SIFTAttention(nn.Module):
                     hist, bin_edges = torch.histogramdd(kpt, 2*[self.input_size], density=True)
                     hist_out[i, 0, :, :] = hist.permute((1,0)).clone().detach().to('cuda')
         return hist_out
-    
-    
+    def __reduce__(self):
+        return (self.__class__, (self.input_size, cv2.SIFT_create))
