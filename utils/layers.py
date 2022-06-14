@@ -548,6 +548,7 @@ class SIFTAttention(nn.Module):
         self.input_size = input_size 
         if self.training:
             self.sift = create_fn()
+            self.bn = nn.BatchNorm2d(1)
         pass
     def forward(self, x: torch.Tensor):
         """Computes the keypoint density
@@ -567,14 +568,16 @@ class SIFTAttention(nn.Module):
             x = torch.permute(x, (0,2,3,1))
             hist_out = torch.zeros((x.shape[0], 1, self.input_size, self.input_size), device=x.device)
             if self.training:
+                #print("running attention SIFT")
                 for i in range(x.shape[0]):
                     img = x[i, :, :, :]
                     img = (img.cpu().numpy()*255).astype(np.uint8)
                     kp = self.sift.detect(cv2.cvtColor(img, cv2.COLOR_BGR2GRAY))
                     kpt = torch.tensor([x.pt for x in kp])
                     #keypoints are x,y (width-height dimension)
-                    hist, bin_edges = torch.histogramdd(kpt, 2*[self.input_size], density=True)
-                    hist_out[i, 0, :, :] = hist.permute((1,0)).clone().detach().to('cuda')
+                    hist, bin_edges = torch.histogramdd(kpt, 2*[self.input_size], density=False)
+                    hist = self.bn(hist)
+                    hist_out[i, 0, :, :] = -1*hist.permute((1,0)).clone().detach().to('cuda')
         return hist_out
     def __reduce__(self):
         return (self.__class__, (self.input_size, cv2.SIFT_create))
