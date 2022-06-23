@@ -3,8 +3,8 @@ from utils.layers import *
 from utils.parse_config import *
 from utils import torch_utils
 
-ONNX_EXPORT = False
-
+global ONNX_EXPORT 
+ONNX_EXPORT = False 
 
 def create_modules(module_defs, img_size, cfg):
     # Constructs module list of layer blocks from module configuration in module_defs
@@ -535,23 +535,25 @@ class JDELayer(nn.Module):
 class Darknet(nn.Module):
     # YOLOv3 object detection model
 
-    def __init__(self, cfg, img_size=(416, 416), verbose=False):
+    def __init__(self, cfg, img_size=(416, 416), verbose=False, export=False):
         super(Darknet, self).__init__()
 
         self.module_defs = parse_model_cfg(cfg)
         self.module_list, self.routs = create_modules(self.module_defs, img_size, cfg)
         self.yolo_layers = get_yolo_layers(self)
+        self.export = export
+        ONNX_EXPORT = export
         # torch_utils.initialize_weights(self)
 
         # Darknet Header https://github.com/AlexeyAB/darknet/issues/2914#issuecomment-496675346
         self.version = np.array([0, 2, 5], dtype=np.int32)  # (int32) version info: major, minor, revision
         self.seen = np.array([0], dtype=np.int64)  # (int64) number of images seen during training
-        self.info(verbose) if not ONNX_EXPORT else None  # print model description
+        self.info(verbose) if not self.export else None  # print model description
 
     def forward(self, x, augment=False, verbose=False):
 
         if not augment:
-            return self.forward_once(x)
+            return self.forward_once(x) if not self.export else self.forward_once(x)[0]
         else:  # Augment images (inference and test only) https://github.com/ultralytics/yolov3/issues/931
             img_size = x.shape[-2:]  # height, width
             s = [0.83, 0.67]  # scales
@@ -650,7 +652,8 @@ class Darknet(nn.Module):
                         break
             fused_list.append(a)
         self.module_list = fused_list
-        self.info() if not ONNX_EXPORT else None  # yolov3-spp reduced from 225 to 152 layers
+        print(f"VALUE OF ONNX EXPORT IS {self.export}")
+        self.info() if not self.export else None  # yolov3-spp reduced from 225 to 152 layers
 
     def info(self, verbose=False):
         torch_utils.model_info(self, verbose)

@@ -2,6 +2,10 @@ import argparse
 
 import torch
 
+import sys
+
+sys.path.insert(0, './')
+from models.models import *
 from utils.google_utils import attempt_download
 
 if __name__ == '__main__':
@@ -9,6 +13,7 @@ if __name__ == '__main__':
     parser.add_argument('--weights', type=str, default='./yolov4.pt', help='weights path')
     parser.add_argument('--img-size', nargs='+', type=int, default=[640, 640], help='image size')
     parser.add_argument('--batch-size', type=int, default=1, help='batch size')
+    parser.add_argument('--cfg', type=str, default='cfg/yolor_csp.cfg', help='config file path')
     opt = parser.parse_args()
     opt.img_size *= 2 if len(opt.img_size) == 1 else 1  # expand
     print(opt)
@@ -18,10 +23,16 @@ if __name__ == '__main__':
 
     # Load PyTorch model
     attempt_download(opt.weights)
-    model = torch.load(opt.weights, map_location=torch.device('cpu'))['model'].float()
+    d = torch.load(opt.weights, map_location=torch.device('cpu'))
+    print(d['model'].keys())
+    model = Darknet(cfg=opt.cfg, img_size=opt.img_size, export=True)
+    model.load_state_dict(d["model"])
+
+    # model = torch.load(opt.weights, map_location=torch.device('cpu'))['model'].float()
+    model.float()
     model.eval()
-    model.model[-1].export = True  # set Detect() layer export=True
     y = model(img)  # dry run
+    
 
     # TorchScript export
     try:
@@ -40,8 +51,9 @@ if __name__ == '__main__':
         print('\nStarting ONNX export with onnx %s...' % onnx.__version__)
         f = opt.weights.replace('.pt', '.onnx')  # filename
         model.fuse()  # only for ONNX
-        torch.onnx.export(model, img, f, verbose=False, opset_version=12, input_names=['images'],
-                          output_names=['classes', 'boxes'] if y is None else ['output'])
+        print(f"Running export with input {img.shape}")
+        torch.onnx.export(model, img, f, verbose=True, opset_version=12, input_names=['images'],
+                          output_names=['output'])#['classes', 'boxes'] if y is None else ['output'])
 
         # Checks
         onnx_model = onnx.load(f)  # load onnx model
