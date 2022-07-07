@@ -1,6 +1,7 @@
 import argparse
 
 import torch
+import os
 
 import sys
 
@@ -14,12 +15,14 @@ if __name__ == '__main__':
     parser.add_argument('--img-size', nargs='+', type=int, default=[640, 640], help='image size')
     parser.add_argument('--batch-size', type=int, default=1, help='batch size')
     parser.add_argument('--cfg', type=str, default='cfg/yolor_csp.cfg', help='config file path')
+    parser.add_argument('--fp16', action='store_true', help="half floating point precision")
+    parser.add_argument('--export_filename', type=str, default='', help='output filename of onnx file')
     opt = parser.parse_args()
     opt.img_size *= 2 if len(opt.img_size) == 1 else 1  # expand
     print(opt)
 
     # Input
-    img = torch.zeros((opt.batch_size, 3, *opt.img_size))  # image size(1,3,320,192) iDetection
+    img = torch.zeros((opt.batch_size, 3, *opt.img_size), device='cuda')  # image size(1,3,320,192) iDetection
 
     # Load PyTorch model
     attempt_download(opt.weights)
@@ -30,6 +33,11 @@ if __name__ == '__main__':
 
     # model = torch.load(opt.weights, map_location=torch.device('cpu'))['model'].float()
     model.float()
+    if opt.fp16:
+        model.half()
+        img = img.half()
+        model.to('cuda')
+        img.to('cuda')
     model.eval()
     y = model(img)  # dry run
     
@@ -37,6 +45,8 @@ if __name__ == '__main__':
     # TorchScript export
     try:
         print('\nStarting TorchScript export with torch %s...' % torch.__version__)
+        f, ext = os.path.splitext(opt.weights)
+        opt.weights = opt.export_filename + ext
         f = opt.weights.replace('.pt', '.torchscript.pt')  # filename
         ts = torch.jit.trace(model, img)
         ts.save(f)
@@ -52,7 +62,7 @@ if __name__ == '__main__':
         f = opt.weights.replace('.pt', '.onnx')  # filename
         model.fuse()  # only for ONNX
         print(f"Running export with input {img.shape}")
-        torch.onnx.export(model, img, f, verbose=True, opset_version=12, input_names=['images'],
+        torch.onnx.export(model.half(), img.half(), f, verbose=True, opset_version=12, input_names=['images'],
                           output_names=['output'])#['classes', 'boxes'] if y is None else ['output'])
 
         # Checks
