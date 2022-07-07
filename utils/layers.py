@@ -577,6 +577,8 @@ class SIFTAttention(nn.Module):
                     #keypoints are x,y (width-height dimension)
                     hist, bin_edges = torch.histogramdd(kpt, 2*[self.input_size], density=False)
                     hist_out[i, 0, :, :] = -1*hist.permute((1,0)).clone().detach().to('cuda')
+            else:
+                hist_out = hist_out.half()
         return self.bn(hist_out)
     def __reduce__(self):
         return (self.__class__, (self.input_size, cv2.SIFT_create))
