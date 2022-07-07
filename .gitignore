@@ -3,3 +3,6 @@ inference/**
 *.out
 *.err
 wandb/**
+*.pyc
+*events.out.tfevents*
+runs/**
