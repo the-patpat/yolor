@@ -10,6 +10,7 @@ from itertools import repeat
 from multiprocessing.pool import ThreadPool
 from pathlib import Path
 from threading import Thread
+from uuid import uuid1
 
 import cv2
 import numpy as np
@@ -939,18 +940,27 @@ def load_image(self, index):
             if self.rng.binomial(1, self.hyp['sift']):
                 kp = self.sift.detect(cv2.cvtColor(img, cv2.COLOR_BGR2GRAY))
                 points = np.asarray([x.pt for x in kp])
+                plt.figure()
                 h,x,y, _ = plt.hist2d(
                     points[:, 0],
                     points[:, 1],
-                    bins=(w0//10,h0//10),
+                    bins=(w0//100,h0//100),
                     cmap='gray')
                 plt.axis('off')
-                plt.savefig('test.png', bbox_inches='tight', pad_inches=0)
-                hist = cv2.resize(cv2.imread("test.png"), (1920,1200))
-                hist = cv2.GaussianBlur(hist, (19,11), 10.0)
-                hist = np.flipud(hist)
-                img = cv2.addWeighted(img, 1.3, hist, -0.3, 0.0)
-                os.remove('test.png')
+                hist_id = uuid1()
+                for i in range(3):
+                    plt.savefig(f'test_{hist_id}.png', bbox_inches='tight', pad_inches=0)
+                    if os.path.exists(f'test_{hist_id}.png'):
+                        break
+                if os.path.exists(f'test_{hist_id}.png'):
+                    hist = cv2.resize(cv2.imread(f"test_{hist_id}.png"), (w0,h0))
+                    hist = cv2.GaussianBlur(hist, (19, 11), 10.0)
+                    hist = np.flipud(hist)
+                    img = cv2.addWeighted(img, 1.3, hist, -0.3, 0.0)
+                    os.remove(f'test_{hist_id}.png')
+                    plt.close()
+                else:
+                    print("something went wrong with the histogram")
         r = self.img_size / max(h0, w0)  # resize image to img_size
         if r != 1:  # always resize down, only resize up if training with augmentation
             interp = cv2.INTER_AREA if r < 1 and not self.augment else cv2.INTER_LINEAR
