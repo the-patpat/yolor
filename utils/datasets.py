@@ -26,6 +26,10 @@ from torchvision.utils import save_image
 from utils.general import xyxy2xywh, xywh2xyxy
 from utils.torch_utils import torch_distributed_zero_first
 
+import matplotlib
+import matplotlib.pyplot as plt
+matplotlib.use('Agg')
+
 # Parameters
 help_url = 'https://github.com/ultralytics/yolov5/wiki/Train-Custom-Data'
 img_formats = ['bmp', 'jpg', 'jpeg', 'png', 'tif', 'tiff', 'dng']  # acceptable image suffixes
@@ -365,6 +369,8 @@ class LoadImagesAndLabels(Dataset):  # for training/testing
         self.mosaic = self.augment and not self.rect  # load 4 images at a time into a mosaic (only during training)
         self.mosaic_border = [-img_size // 2, -img_size // 2]
         self.stride = stride
+        self.sift = cv2.SIFT_create()
+        self.rng = np.random.default_rng()
 
         def img2label_paths(img_paths):
             # Define label paths as a function of image paths
@@ -929,6 +935,22 @@ def load_image(self, index):
         img = cv2.imread(path)  # BGR
         assert img is not None, 'Image Not Found ' + path
         h0, w0 = img.shape[:2]  # orig hw
+        if self.augment:
+            if self.rng.binomial(1, self.hyp['sift']):
+                kp = self.sift.detect(cv2.cvtColor(img, cv2.COLOR_BGR2GRAY))
+                points = np.asarray([x.pt for x in kp])
+                h,x,y, _ = plt.hist2d(
+                    points[:, 0],
+                    points[:, 1],
+                    bins=(w0//10,h0//10),
+                    cmap='gray')
+                plt.axis('off')
+                plt.savefig('test.png', bbox_inches='tight', pad_inches=0)
+                hist = cv2.resize(cv2.imread("test.png"), (1920,1200))
+                hist = cv2.GaussianBlur(hist, (19,11), 10.0)
+                hist = np.flipud(hist)
+                img = cv2.addWeighted(img, 1.3, hist, -0.3, 0.0)
+                os.remove('test.png')
         r = self.img_size / max(h0, w0)  # resize image to img_size
         if r != 1:  # always resize down, only resize up if training with augmentation
             interp = cv2.INTER_AREA if r < 1 and not self.augment else cv2.INTER_LINEAR
