@@ -30,13 +30,17 @@ def torch_distributed_zero_first(local_rank: int):
 
 def init_torch_seeds(seed=0):
     # Speed-reproducibility tradeoff https://pytorch.org/docs/stable/notes/randomness.html
+    torch.use_deterministic_algorithms(True)
     torch.manual_seed(seed)
-    if seed == 0:  # slower, more reproducible
-        cudnn.deterministic = True
-        cudnn.benchmark = False
-    else:  # faster, less reproducible
-        cudnn.deterministic = False
-        cudnn.benchmark = True
+    torch.cuda.manual_seed_all(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False 
+    # if seed == 0:  # slower, more reproducible
+    #     cudnn.deterministic = True
+    #     cudnn.benchmark = False
+    # else:  # faster, less reproducible
+    #     cudnn.deterministic = False
+    #     cudnn.benchmark = True
 
 
 def select_device(device='', batch_size=None):

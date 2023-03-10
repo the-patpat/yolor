@@ -39,6 +39,7 @@ def set_logging(rank=-1):
 def init_seeds(seed=0):
     random.seed(seed)
     np.random.seed(seed)
+    os.environ['PYTHONHASHSEED'] = str(seed)
     init_torch_seeds(seed)
 
 

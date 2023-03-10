@@ -371,7 +371,7 @@ class LoadImagesAndLabels(Dataset):  # for training/testing
         self.mosaic_border = [-img_size // 2, -img_size // 2]
         self.stride = stride
         self.sift = cv2.SIFT_create()
-        self.rng = np.random.default_rng()
+        self.rng = np.random.default_rng(seed=0)
 
         def img2label_paths(img_paths):
             # Define label paths as a function of image paths
@@ -938,27 +938,16 @@ def load_image(self, index):
         h0, w0 = img.shape[:2]  # orig hw
         if self.augment:
             if self.rng.binomial(1, self.hyp['sift']):
-                kp = self.sift.detect(cv2.cvtColor(img, cv2.COLOR_BGR2GRAY))
-                points = np.asarray([x.pt for x in kp])
-                plt.figure()
-                h,x,y, _ = plt.hist2d(
-                    points[:, 0],
-                    points[:, 1],
-                    bins=(w0//100,h0//100),
-                    cmap='gray')
-                plt.axis('off')
-                hist_id = uuid1()
-                for i in range(3):
-                    plt.savefig(f'test_{hist_id}.png', bbox_inches='tight', pad_inches=0)
-                    if os.path.exists(f'test_{hist_id}.png'):
-                        break
-                if os.path.exists(f'test_{hist_id}.png'):
-                    hist = cv2.resize(cv2.imread(f"test_{hist_id}.png"), (w0,h0))
+                sift_mask_path = os.path.join(
+                    '/home/pasch/scratch/RumexWeeds/random_train_sift_mask',
+                    os.path.split(path)[-1]
+                )
+                #Replace the hard-coded path above with an argument or such
+                if os.path.exists(sift_mask_path):
+                    hist = cv2.resize(cv2.imread(sift_mask_path), (w0,h0))
                     hist = cv2.GaussianBlur(hist, (19, 11), 10.0)
                     hist = np.flipud(hist)
                     img = cv2.addWeighted(img, 1.3, hist, -0.3, 0.0)
-                    os.remove(f'test_{hist_id}.png')
-                    plt.close()
                 else:
                     print("something went wrong with the histogram")
         r = self.img_size / max(h0, w0)  # resize image to img_size
