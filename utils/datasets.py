@@ -84,6 +84,7 @@ def create_dataloader(path, imgsz, batch_size, stride, opt, hyp=None, augment=Fa
                                     num_workers=nw,
                                     sampler=sampler,
                                     pin_memory=True,
+                                    persistent_workers=True,
                                     collate_fn=LoadImagesAndLabels.collate_fn)  # torch.utils.data.DataLoader()
     return dataloader, dataset
 
@@ -372,6 +373,9 @@ class LoadImagesAndLabels(Dataset):  # for training/testing
         self.stride = stride
         self.sift = cv2.SIFT_create()
         self.rng = np.random.default_rng(seed=0)
+        self.p_sift = hyp['sift']
+        self.sift_decay = hyp['sift_decay']
+        self.n_accesses = 0
 
         def img2label_paths(img_paths):
             # Define label paths as a function of image paths
@@ -417,6 +421,7 @@ class LoadImagesAndLabels(Dataset):  # for training/testing
         n = len(shapes)  # number of images
         bi = np.floor(np.arange(n) / batch_size).astype(np.int)  # batch index
         nb = bi[-1] + 1  # number of batches
+        self.nb = nb
         self.batch = bi  # batch index of image
         self.n = n
 
@@ -633,7 +638,11 @@ class LoadImagesAndLabels(Dataset):  # for training/testing
         # Convert
         img = img[:, :, ::-1].transpose(2, 0, 1)  # BGR to RGB, to 3x416x416
         img = np.ascontiguousarray(img)
-
+        self.n_accesses += 1
+        print(f'Worker {torch.utils.get_worker_info().id} has accessed {self.n_accesses} images so far')
+        if self.n_accesses == self.nb:
+            self.p_sift *= self.sift_decay
+            print(f'Evolved sift probability to {self.p_sift}')
         return torch.from_numpy(img), labels_out, self.img_files[index], shapes
 
     @staticmethod
@@ -937,9 +946,9 @@ def load_image(self, index):
         assert img is not None, 'Image Not Found ' + path
         h0, w0 = img.shape[:2]  # orig hw
         if self.augment:
-            if self.rng.binomial(1, self.hyp['sift']):
+            if self.rng.binomial(1, self.p_sift):
                 sift_mask_path = os.path.join(
-                    '/home/pasch/scratch/RumexWeeds/random_train_sift_mask',
+                    '/home/pasch/datasets/RumexWeeds/random_train_sift_mask',
                     os.path.split(path)[-1]
                 )
                 #Replace the hard-coded path above with an argument or such
