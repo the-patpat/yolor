@@ -354,8 +354,8 @@ def train(hyp, opt, device, tb_writer=None, wandb=None):
             tags = ['train/box_loss', 'train/obj_loss', 'train/cls_loss',  # train loss
                     'metrics/precision', 'metrics/recall', 'metrics/mAP_0.5', 'metrics/mAP_0.5:0.95',
                     'val/box_loss', 'val/obj_loss', 'val/cls_loss',  # val loss
-                    'x/lr0', 'x/lr1', 'x/lr2']  # params
-            for x, tag in zip(list(mloss[:-1]) + list(results) + lr, tags):
+                    'x/lr0', 'x/lr1', 'x/lr2', 'x/p_sift']  # params
+            for x, tag in zip(list(mloss[:-1]) + list(results) + lr + [dataloader.dataset.p_sift], tags):
                 if tb_writer:
                     tb_writer.add_scalar(tag, x, epoch)  # tensorboard
                 if wandb:
@@ -427,6 +427,9 @@ def train(hyp, opt, device, tb_writer=None, wandb=None):
                 elif epoch >= 420: 
                     torch.save(ckpt, wdir / 'last_{:03d}.pt'.format(epoch))
                 del ckpt
+        
+        #Evolve sift probability
+        dataloader.dataset.evolve()
         # end epoch ----------------------------------------------------------------------------------------------------
     # end training
 

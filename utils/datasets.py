@@ -79,12 +79,11 @@ def create_dataloader(path, imgsz, batch_size, stride, opt, hyp=None, augment=Fa
     batch_size = min(batch_size, len(dataset))
     nw = min([os.cpu_count() // world_size, batch_size if batch_size > 1 else 0, workers])  # number of workers
     sampler = torch.utils.data.distributed.DistributedSampler(dataset) if rank != -1 else None
-    dataloader = InfiniteDataLoader(dataset,
+    dataloader = torch.utils.data.dataloader.DataLoader(dataset,
                                     batch_size=batch_size,
                                     num_workers=nw,
                                     sampler=sampler,
                                     pin_memory=True,
-                                    persistent_workers=True,
                                     collate_fn=LoadImagesAndLabels.collate_fn)  # torch.utils.data.DataLoader()
     return dataloader, dataset
 
@@ -373,9 +372,8 @@ class LoadImagesAndLabels(Dataset):  # for training/testing
         self.stride = stride
         self.sift = cv2.SIFT_create()
         self.rng = np.random.default_rng(seed=0)
-        self.p_sift = hyp['sift']
+        self.p_sift = hyp['sift'] 
         self.sift_decay = hyp['sift_decay']
-        self.n_accesses = 0
 
         def img2label_paths(img_paths):
             # Define label paths as a function of image paths
@@ -638,12 +636,10 @@ class LoadImagesAndLabels(Dataset):  # for training/testing
         # Convert
         img = img[:, :, ::-1].transpose(2, 0, 1)  # BGR to RGB, to 3x416x416
         img = np.ascontiguousarray(img)
-        self.n_accesses += 1
-        print(f'Worker {torch.utils.get_worker_info().id} has accessed {self.n_accesses} images so far')
-        if self.n_accesses == self.nb:
-            self.p_sift *= self.sift_decay
-            print(f'Evolved sift probability to {self.p_sift}')
         return torch.from_numpy(img), labels_out, self.img_files[index], shapes
+
+    def evolve(self):
+        self.p_sift *= self.sift_decay
 
     @staticmethod
     def collate_fn(batch):
@@ -948,7 +944,7 @@ def load_image(self, index):
         if self.augment:
             if self.rng.binomial(1, self.p_sift):
                 sift_mask_path = os.path.join(
-                    '/home/pasch/datasets/RumexWeeds/random_train_sift_mask',
+                    '/home/pasch/datasets_local/RumexWeeds/random_train_sift_mask',
                     os.path.split(path)[-1]
                 )
                 #Replace the hard-coded path above with an argument or such
