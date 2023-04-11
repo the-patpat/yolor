@@ -429,7 +429,11 @@ def train(hyp, opt, device, tb_writer=None, wandb=None):
                 del ckpt
         
         #Evolve sift probability
-        dataloader.dataset.evolve()
+        if hyp['cosine_period'] is not None:
+            dataset_epoch = epoch
+        else:
+            dataset_epoch = None 
+        dataloader.dataset.evolve(dataset_epoch)
         # end epoch ----------------------------------------------------------------------------------------------------
     # end training
 

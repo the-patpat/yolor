@@ -26,5 +26,6 @@ flipud: 0.0  # image flip up-down (probability)
 fliplr: 0.5  # image flip left-right (probability)
 mosaic: 1.0  # image mosaic (probability)
 mixup: 0.0  # image mixup (probability)
-sift: 1.0 #sift augmentation probability at epoch 0
-sift_decay: 0.95 #sift decay
+sift: 0.2 #sift augmentation probability at epoch 0
+sift_decay: 0.94 #sift decay
+cosine_period: 50 

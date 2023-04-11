@@ -374,6 +374,7 @@ class LoadImagesAndLabels(Dataset):  # for training/testing
         self.rng = np.random.default_rng(seed=0)
         self.p_sift = hyp['sift'] 
         self.sift_decay = hyp['sift_decay']
+        self.cosine_period = hyp['cosine_period']
 
         def img2label_paths(img_paths):
             # Define label paths as a function of image paths
@@ -638,8 +639,20 @@ class LoadImagesAndLabels(Dataset):  # for training/testing
         img = np.ascontiguousarray(img)
         return torch.from_numpy(img), labels_out, self.img_files[index], shapes
 
-    def evolve(self):
-        self.p_sift *= self.sift_decay
+    def evolve(self, epoch=None):
+        """Evolves the SIFT augmentation hyperparameters
+
+        Args:
+            epoch (int, optional): Used for the cosine annealing rate. Defaults to None.
+        """
+        if epoch is None:
+            #Exponential decay
+            self.p_sift *= self.sift_decay
+        else:
+            #Annealing scheduling
+            #This formula with min=0 and max=1
+            self.p_sift = 0.5*self.hyp['sift']*(1 + np.cos((epoch%self.cosine_period)*np.pi/self.cosine_period))
+
 
     @staticmethod
     def collate_fn(batch):
